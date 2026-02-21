@@ -14,7 +14,10 @@ export default function TripsPage() {
     const [loading, setLoading] = useState(true)
 
     const [showModal, setShowModal] = useState(false)
-    const [formData, setFormData] = useState({ vehicleId: '', driverId: '', cargoWeight: '' })
+    const [formData, setFormData] = useState({ vehicleId: '', driverId: '', cargoWeight: '', distance: '' })
+
+    const [completingTripId, setCompletingTripId] = useState<number | null>(null)
+    const [completeData, setCompleteData] = useState({ driverRating: '10', fuelUsed: '' })
 
     const fetchData = async () => {
         setLoading(true)
@@ -24,9 +27,13 @@ export default function TripsPage() {
             fetch('/api/drivers')
         ])
 
-        setTrips(await tripsRes.json() || [])
-        setVehicles(await vehRes.json() || [])
-        setDrivers(await driRes.json() || [])
+        const trData = await tripsRes.json()
+        const vehData = await vehRes.json()
+        const driData = await driRes.json()
+
+        setTrips(Array.isArray(trData) ? trData : [])
+        setVehicles(Array.isArray(vehData) ? vehData : [])
+        setDrivers(Array.isArray(driData) ? driData : [])
         setLoading(false)
     }
 
@@ -42,7 +49,7 @@ export default function TripsPage() {
 
         if (res.ok) {
             setShowModal(false)
-            setFormData({ vehicleId: '', driverId: '', cargoWeight: '' })
+            setFormData({ vehicleId: '', driverId: '', cargoWeight: '', distance: '' })
             fetchData()
         } else {
             const { error } = await res.json()
@@ -50,11 +57,21 @@ export default function TripsPage() {
         }
     }
 
-    const completeTrip = async (tripId: number) => {
-        if (!confirm("Are you sure you want to log this trip as COMPLETED?")) return
-        const res = await fetch('/api/trips', { method: "PATCH", body: JSON.stringify({ tripId }), headers: { "Content-Type": "application/json" } })
-        if (res.ok) fetchData()
-        else alert("Failed to complete trip")
+    const executeCompleteTrip = async (e: React.FormEvent) => {
+        e.preventDefault()
+        if (!completingTripId) return
+        const res = await fetch('/api/trips', {
+            method: "PATCH",
+            body: JSON.stringify({ tripId: completingTripId, ...completeData }),
+            headers: { "Content-Type": "application/json" }
+        })
+        if (res.ok) {
+            setCompletingTripId(null)
+            setCompleteData({ driverRating: '10', fuelUsed: '' })
+            fetchData()
+        } else {
+            alert("Failed to complete trip")
+        }
     }
 
     return (
@@ -83,6 +100,7 @@ export default function TripsPage() {
                                 <th className="px-6 py-4 font-semibold">Vehicle</th>
                                 <th className="px-6 py-4 font-semibold">Assigned Driver</th>
                                 <th className="px-6 py-4 font-semibold">Payload</th>
+                                <th className="px-6 py-4 font-semibold">Distance</th>
                                 <th className="px-6 py-4 font-semibold">Status</th>
                                 <th className="px-6 py-4 font-semibold text-right">Actions</th>
                             </tr>
@@ -98,6 +116,7 @@ export default function TripsPage() {
                                     <td className="px-6 py-4 font-bold text-white">{t.vehicle?.name || "Unknown"}</td>
                                     <td className="px-6 py-4 text-gray-300">{t.driver?.name || "Unknown"}</td>
                                     <td className="px-6 py-4 text-gray-400 font-mono">{t.cargoWeight} kg</td>
+                                    <td className="px-6 py-4 text-gray-400 font-mono">{t.distance} km</td>
                                     <td className="px-6 py-4">
                                         <span className={`text-[10px] px-2.5 py-1 rounded-full border font-bold tracking-wide uppercase ${t.status === 'COMPLETED' ? 'text-indigo-400 border-indigo-500/30 bg-indigo-500/10' :
                                             t.status === 'DISPATCHED' ? 'text-amber-400 border-amber-500/30 bg-amber-500/10 animate-pulse shadow-[0_0_15px_rgba(251,191,36,0.2)]' :
@@ -109,7 +128,7 @@ export default function TripsPage() {
                                     <td className="px-6 py-4 text-right">
                                         {t.status === "DISPATCHED" && (
                                             <button
-                                                onClick={() => completeTrip(t.id)}
+                                                onClick={() => setCompletingTripId(t.id)}
                                                 className="text-xs font-semibold bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 hover:bg-indigo-500 hover:text-white hover:shadow-[0_0_15px_rgba(99,102,241,0.5)] px-3 py-1.5 rounded-lg transition-all"
                                             >
                                                 Complete Target
@@ -169,11 +188,20 @@ export default function TripsPage() {
                                 </select>
                             </div>
 
-                            <div>
-                                <label className="text-xs text-gray-400 font-medium mb-1.5 block">Cargo Payload (kg)</label>
-                                <div className="relative group">
-                                    <Package className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-hover:text-amber-400 transition-colors" />
-                                    <input required value={formData.cargoWeight} onChange={e => setFormData({ ...formData, cargoWeight: e.target.value })} type="number" min="1" className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50" />
+                            <div className="flex gap-4">
+                                <div className="flex-1">
+                                    <label className="text-xs text-gray-400 font-medium mb-1.5 block">Cargo Payload (kg)</label>
+                                    <div className="relative group">
+                                        <Package className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-hover:text-amber-400 transition-colors" />
+                                        <input required value={formData.cargoWeight} onChange={e => setFormData({ ...formData, cargoWeight: e.target.value })} type="number" min="1" className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50" />
+                                    </div>
+                                </div>
+                                <div className="flex-1">
+                                    <label className="text-xs text-gray-400 font-medium mb-1.5 block">Route Distance (km)</label>
+                                    <div className="relative group">
+                                        <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-hover:text-amber-400 transition-colors" />
+                                        <input required value={formData.distance} onChange={e => setFormData({ ...formData, distance: e.target.value })} type="number" min="0.1" step="0.1" className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50" />
+                                    </div>
                                 </div>
                             </div>
 
@@ -189,6 +217,40 @@ export default function TripsPage() {
                     </div>
                 </div>
             )}
+
+            {completingTripId && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+                    <div className="bg-[#0f0f13] border border-white/10 rounded-3xl p-8 w-full max-w-md shadow-2xl relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none" />
+
+                        <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
+                            <CheckCircle className="w-5 h-5 text-indigo-400" />
+                            Log Final Trip Targets
+                        </h3>
+
+                        <form onSubmit={executeCompleteTrip} className="flex flex-col gap-4 relative z-10">
+                            <div>
+                                <label className="text-xs text-gray-400 font-medium mb-1.5 block">Driver Performance Rating (0-10)</label>
+                                <input required type="number" min="0" max="10" step="0.5" value={completeData.driverRating} onChange={e => setCompleteData({ ...completeData, driverRating: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50" />
+                            </div>
+                            <div>
+                                <label className="text-xs text-gray-400 font-medium mb-1.5 block">Fuel Consumption (Liters)</label>
+                                <input required type="number" min="0" step="0.1" value={completeData.fuelUsed} onChange={e => setCompleteData({ ...completeData, fuelUsed: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50" />
+                            </div>
+
+                            <div className="flex gap-3 mt-4">
+                                <button type="button" onClick={() => setCompletingTripId(null)} className="flex-1 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-sm font-semibold transition-colors border border-white/10">
+                                    Cancel
+                                </button>
+                                <button type="submit" className="flex-1 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white shadow-[0_0_20px_rgba(79,70,229,0.3)] text-sm font-semibold transition-colors">
+                                    Finalize Trip
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }
+

@@ -9,11 +9,11 @@ import { useSession } from "next-auth/react"
 
 const navigation = [
     { name: 'Command Center', href: '/dashboard', icon: LayoutDashboard, roles: ['Fleet Manager', 'Dispatcher', 'Safety Officer', 'Financial Analyst'] },
-    { name: 'Vehicle Registry', href: '/vehicles', icon: Truck, roles: ['Fleet Manager', 'Dispatcher', 'Safety Officer', 'Financial Analyst'] },
-    { name: 'Trip Dispatcher', href: '/trips', icon: MapPin, roles: ['Fleet Manager', 'Dispatcher', 'Safety Officer'] },
+    { name: 'Vehicle Registry', href: '/vehicles', icon: Truck, roles: ['Fleet Manager', 'Dispatcher'] },
+    { name: 'Trip Dispatcher', href: '/trips', icon: MapPin, roles: ['Fleet Manager', 'Dispatcher'] },
     { name: 'Maintenance', href: '/maintenance', icon: Wrench, roles: ['Fleet Manager', 'Dispatcher', 'Safety Officer'] },
     { name: 'Driver Safety', href: '/drivers', icon: Users, roles: ['Fleet Manager', 'Dispatcher', 'Safety Officer'] },
-    { name: 'Fuel & Expenses', href: '/fuel', icon: Fuel, roles: ['Fleet Manager', 'Financial Analyst'] },
+    { name: 'Fuel & Expenses', href: '/fuel', icon: Fuel, roles: ['Fleet Manager'] },
     { name: 'Reports & ROI', href: '/analytics', icon: BarChart3, roles: ['Fleet Manager', 'Financial Analyst'] },
 ]
 
@@ -22,8 +22,11 @@ export default function Sidebar() {
     const { data: session, status } = useSession()
     const [collapsed, setCollapsed] = useState(false)
 
-    const userRole = session?.user?.role || (status === "loading" ? "" : "Dispatcher")
-    const filteredNav = status === "loading" ? [] : navigation.filter(item => item.roles.includes(userRole))
+    // Only determine navigation once we have a confirmed role from the session
+    const userRole = session?.user?.role
+    const filteredNav = status === "loading" || !userRole
+        ? []
+        : navigation.filter(item => item.roles.includes(userRole))
 
     return (
         <motion.div

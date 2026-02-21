@@ -30,7 +30,7 @@ function StatCard({ name, value, subtext, icon: Icon, color, trend }: any) {
 
 export default function DashboardPage() {
     const { data: session, status } = useSession()
-    const userRole = session?.user?.role || (status === "loading" ? "" : "Dispatcher")
+    const userRole = session?.user?.role
     const [data, setData] = useState<any>(null)
     const [loading, setLoading] = useState(true)
     const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
@@ -48,11 +48,13 @@ export default function DashboardPage() {
 
     useEffect(() => {
         setMounted(true)
-        fetchDashboard()
-        // Auto-refresh every 30 seconds
-        const interval = setInterval(fetchDashboard, 30000)
-        return () => clearInterval(interval)
-    }, [fetchDashboard])
+        if (status === "authenticated") {
+            fetchDashboard()
+            // Auto-refresh every 30 seconds
+            const interval = setInterval(fetchDashboard, 30000)
+            return () => clearInterval(interval)
+        }
+    }, [fetchDashboard, status])
 
     const stats = data ? [
         {
@@ -110,7 +112,7 @@ export default function DashboardPage() {
                         </button>
                     </div>
                 </div>
-                {userRole !== 'Safety Officer' && (
+                {(userRole === 'Fleet Manager' || userRole === 'Dispatcher') && (
                     <button
                         onClick={() => window.location.href = '/trips'}
                         className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-2xl text-sm font-bold transition-all shadow-[0_0_30px_rgba(79,70,229,0.4)] flex items-center gap-2 group"
@@ -160,7 +162,16 @@ export default function DashboardPage() {
                                 </tr>
                             </thead>
                             <tbody className="text-sm">
-                                {!data || data.recentTrips.length === 0 ? (
+                                {loading && !data ? (
+                                    <tr>
+                                        <td colSpan={4} className="py-12 text-center">
+                                            <div className="flex flex-col items-center gap-2">
+                                                <RefreshCw className="w-5 h-5 text-indigo-400 animate-spin" />
+                                                <p className="text-gray-500 font-medium animate-pulse">Initial tracking synchronization...</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ) : !data || data.recentTrips.length === 0 ? (
                                     <tr>
                                         <td colSpan={4} className="py-8 text-center text-gray-500">
                                             No trips dispatched yet. <Link href="/trips" className="text-indigo-400 underline">Dispatch now →</Link>
@@ -197,7 +208,14 @@ export default function DashboardPage() {
                         </Link>
                     </div>
 
-                    {!data || data.maintenanceAlerts.length === 0 ? (
+                    {loading && !data ? (
+                        <div className="flex-1 flex items-center justify-center">
+                            <div className="text-center">
+                                <RefreshCw className="w-5 h-5 text-indigo-400 animate-spin mx-auto mb-2" />
+                                <p className="text-xs text-gray-500 font-medium">Synchronizing logs...</p>
+                            </div>
+                        </div>
+                    ) : !data || data.maintenanceAlerts.length === 0 ? (
                         <div className="flex-1 flex items-center justify-center">
                             <div className="text-center">
                                 <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center mx-auto mb-3">
@@ -233,11 +251,11 @@ export default function DashboardPage() {
             {/* Quick Links */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {[
-                    { label: "Add Vehicle", href: "/vehicles", color: "#6366f1", icon: Truck, roles: ['Fleet Manager', 'Dispatcher', 'Safety Officer'] },
-                    { label: "Add Driver", href: "/drivers", color: "#10b981", icon: Activity, roles: ['Fleet Manager', 'Dispatcher', 'Safety Officer'] },
+                    { label: "Add Vehicle", href: "/vehicles", color: "#6366f1", icon: Truck, roles: ['Fleet Manager', 'Dispatcher'] },
+                    { label: "Add Driver", href: "/drivers", color: "#10b981", icon: Activity, roles: ['Fleet Manager', 'Dispatcher'] },
                     { label: "Dispatch Trip", href: "/trips", color: "#f59e0b", icon: Package, roles: ['Fleet Manager', 'Dispatcher'] },
                     { label: "View Analytics", href: "/analytics", color: "#a855f7", icon: AlertTriangle, roles: ['Fleet Manager', 'Financial Analyst'] },
-                ].filter(q => status !== "loading" && q.roles.includes(userRole)).map((q) => (
+                ].filter(q => status !== "loading" && userRole && q.roles.includes(userRole as string)).map((q) => (
                     <Link key={q.href} href={q.href}
                         className="group flex items-center gap-3 p-4 bg-white/5 hover:bg-white/[0.08] border border-white/5 rounded-2xl transition-all hover:border-white/10"
                     >

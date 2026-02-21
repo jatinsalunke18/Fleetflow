@@ -6,7 +6,7 @@ import { useSession, signOut } from "next-auth/react"
 
 export default function Header() {
     const pathname = usePathname()
-    const { data: session } = useSession()
+    const { data: session, status } = useSession()
 
     const generateTitle = () => {
         if (pathname.includes('/dashboard')) return "Command Center Overview"
@@ -44,8 +44,8 @@ export default function Header() {
 
                     <div className="flex items-center gap-3 pl-2">
                         <div className="flex flex-col items-end">
-                            <span className="text-sm font-semibold text-white">{session?.user?.name || "System User"}</span>
-                            <span className="text-[10px] text-indigo-400 font-bold uppercase tracking-tight">{session?.user?.role || "Operator"}</span>
+                            <span className="text-sm font-semibold text-white">{session?.user?.name || (status === "loading" ? "..." : "")}</span>
+                            <span className="text-[10px] text-indigo-400 font-bold uppercase tracking-tight">{session?.user?.role || (status === "loading" ? "Loading..." : "")}</span>
                         </div>
                         <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 shadow-lg shadow-indigo-500/20" />
                     </div>

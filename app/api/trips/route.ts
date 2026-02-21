@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     }
 
     try {
-        const { vehicleId, driverId, cargoWeight } = await request.json()
+        const { vehicleId, driverId, cargoWeight, distance } = await request.json()
 
         // 1. Validate Vehicle
         const vehicle = await prisma.vehicle.findUnique({ where: { id: parseInt(vehicleId) } })
@@ -57,6 +57,7 @@ export async function POST(request: Request) {
                     vehicleId: vehicle.id,
                     driverId: driver.id,
                     cargoWeight: parseInt(cargoWeight),
+                    distance: parseFloat(distance || 0),
                     status: "DISPATCHED",
                 }
             })
@@ -73,15 +74,48 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
     try {
-        const { tripId } = await request.json()
-        const trip = await prisma.trip.findUnique({ where: { id: parseInt(tripId) } })
+        const { tripId, driverRating, fuelUsed } = await request.json()
+        const trip = await prisma.trip.findUnique({ where: { id: parseInt(tripId) }, include: { driver: true } })
         if (!trip || trip.status !== "DISPATCHED") return NextResponse.json({ error: "Invalid trip or status" }, { status: 400 })
 
-        await prisma.$transaction([
-            prisma.trip.update({ where: { id: trip.id }, data: { status: "COMPLETED", endDate: new Date() } }),
-            prisma.vehicle.update({ where: { id: trip.vehicleId }, data: { status: "AVAILABLE" } }),
-            prisma.driver.update({ where: { id: trip.driverId }, data: { status: "AVAILABLE" } })
-        ])
+        const rating = parseFloat(driverRating || 10)
+        const fuel = parseFloat(fuelUsed || 0)
+
+        // Calculate new safety score
+        const driverTripsCount = await prisma.trip.count({ where: { driverId: trip.driverId, status: "COMPLETED" } })
+        const totalPreviousScoreSum = trip.driver.safetyScore * driverTripsCount
+        const newSafetyScore = driverTripsCount === 0 ? Math.round(rating * 10) : Math.round((totalPreviousScoreSum + (rating * 10)) / (driverTripsCount + 1))
+
+        const updates: any[] = [
+            // Update Trip
+            prisma.trip.update({
+                where: { id: trip.id },
+                data: { status: "COMPLETED", endDate: new Date(), driverRating: rating, fuelUsed: fuel }
+            }),
+            // Update Vehicle
+            prisma.vehicle.update({
+                where: { id: trip.vehicleId },
+                data: { status: "AVAILABLE", odometer: { increment: trip.distance } }
+            }),
+            // Update Driver
+            prisma.driver.update({
+                where: { id: trip.driverId },
+                data: { status: "OFF_DUTY", totalDistance: { increment: trip.distance }, safetyScore: newSafetyScore }
+            })
+        ]
+
+        // Auto Log Fuel if used
+        if (fuel > 0) {
+            updates.push(prisma.fuelLog.create({
+                data: {
+                    vehicleId: trip.vehicleId,
+                    litersUsed: fuel,
+                    cost: fuel * 1.5, // Standard estimated cost, could be made dynamic
+                }
+            }))
+        }
+
+        await prisma.$transaction(updates)
 
         return NextResponse.json({ success: true })
     } catch (error: any) {

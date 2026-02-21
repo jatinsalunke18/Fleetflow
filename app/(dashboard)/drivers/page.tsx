@@ -2,8 +2,12 @@
 
 import { useState, useEffect } from "react"
 import { Users, Plus, ShieldAlert, CheckCircle2, MoreVertical } from "lucide-react"
+import { useSession } from "next-auth/react"
 
 export default function DriversPage() {
+    const { data: session, status } = useSession()
+    const userRole = session?.user?.role
+    const canManageDrivers = (status === "authenticated") && (userRole === 'Fleet Manager' || userRole === 'Dispatcher' || userRole === 'Safety Officer')
     const [drivers, setDrivers] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
     const [showModal, setShowModal] = useState(false)
@@ -12,7 +16,8 @@ export default function DriversPage() {
     const fetchDrivers = async () => {
         setLoading(true)
         const res = await fetch('/api/drivers')
-        setDrivers(await res.json() || [])
+        const data = await res.json()
+        setDrivers(Array.isArray(data) ? data : [])
         setLoading(false)
     }
 
@@ -40,6 +45,17 @@ export default function DriversPage() {
         return new Date(dateString) < new Date()
     }
 
+    const updateStatus = async (id: number, newStatus: string) => {
+        const res = await fetch('/api/drivers', {
+            method: "PATCH",
+            body: JSON.stringify({ id, status: newStatus }),
+            headers: { "Content-Type": "application/json" }
+        })
+        if (res.ok) fetchDrivers()
+        else alert("Failed to update status")
+    }
+
+
     return (
         <div className="flex flex-col gap-8">
             <div className="flex items-end justify-between">
@@ -47,12 +63,14 @@ export default function DriversPage() {
                     <h2 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-white/60">Driver Roster</h2>
                     <p className="text-gray-400 mt-1">Manage personnel, safety compliance, and license expirations.</p>
                 </div>
-                <button
-                    onClick={() => setShowModal(true)}
-                    className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-sm font-semibold transition-all shadow-[0_0_20px_rgba(79,70,229,0.3)] hover:shadow-[0_0_30px_rgba(79,70,229,0.5)] flex items-center gap-2"
-                >
-                    <Plus className="w-4 h-4" /> Add Driver
-                </button>
+                {canManageDrivers && (
+                    <button
+                        onClick={() => setShowModal(true)}
+                        className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-sm font-semibold transition-all shadow-[0_0_20px_rgba(79,70,229,0.3)] hover:shadow-[0_0_30px_rgba(79,70,229,0.5)] flex items-center gap-2"
+                    >
+                        <Plus className="w-4 h-4" /> Add Driver
+                    </button>
+                )}
             </div>
 
             <div className="bg-[#09090b] border border-white/5 rounded-3xl shadow-xl shadow-black/50 overflow-hidden">
@@ -63,8 +81,8 @@ export default function DriversPage() {
                                 <th className="px-6 py-4 font-semibold">Contractor Name</th>
                                 <th className="px-6 py-4 font-semibold">License #</th>
                                 <th className="px-6 py-4 font-semibold">License Valid Until</th>
-                                <th className="px-6 py-4 font-semibold text-center">Safety Score</th>
-                                <th className="px-6 py-4 font-semibold">Status</th>
+                                <th className="px-6 py-4 font-semibold text-center">Performance Data</th>
+                                <th className="px-6 py-4 font-semibold">Duty Status</th>
                                 <th className="px-6 py-4 font-semibold text-right">Actions</th>
                             </tr>
                         </thead>
@@ -94,16 +112,28 @@ export default function DriversPage() {
                                         )}
                                     </td>
                                     <td className="px-6 py-4 text-center">
-                                        <span className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-indigo-400">{d.safetyScore}/100</span>
+                                        <div className="flex flex-col gap-1 text-center">
+                                            <span className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-indigo-400">Score: {d.safetyScore}/100</span>
+                                            <span className="text-[10px] text-gray-400 font-mono">Dist: {d.totalDistance?.toLocaleString() || 0} km</span>
+                                            <span className="text-[10px] text-gray-400 font-mono">Success: {Math.round(d.tripCompletionRate)}%</span>
+                                        </div>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <span className={`text-xs px-2.5 py-1 rounded-full border font-bold tracking-wide ${d.status === 'OFF_DUTY' ? 'text-gray-400 border-gray-500/30 bg-white/5' :
-                                                d.status === 'ON_DUTY' ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' :
-                                                    d.status === 'ON_TRIP' ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' :
-                                                        'text-red-400 border-red-500/30 bg-red-500/10'
-                                            }`}>
-                                            {d.status}
-                                        </span>
+                                        <select
+                                            value={d.status}
+                                            onChange={(e) => updateStatus(d.id, e.target.value)}
+                                            className={`text-[10px] px-2.5 py-1.5 rounded-lg border font-bold uppercase tracking-wide transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/50 ${d.status === 'OFF_DUTY' ? 'text-gray-400 border-gray-500/30 bg-white/5 hover:bg-white/10 cursor-pointer' :
+                                                d.status === 'ON_DUTY' ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 cursor-pointer' :
+                                                    d.status === 'ON_TRIP' ? 'text-amber-400 border-amber-500/30 bg-amber-500/10 cursor-not-allowed' :
+                                                        'text-red-400 border-red-500/30 bg-red-500/10 hover:bg-red-500/20 cursor-pointer'
+                                                }`}
+                                            disabled={d.status === 'ON_TRIP' || !canManageDrivers}
+                                        >
+                                            <option value="ON_DUTY" className="bg-[#0f0f13] text-white">On Duty</option>
+                                            <option value="OFF_DUTY" className="bg-[#0f0f13] text-white">Off Duty</option>
+                                            <option value="SUSPENDED" className="bg-[#0f0f13] text-red-500">Suspended</option>
+                                            {d.status === 'ON_TRIP' && <option value="ON_TRIP" className="bg-[#0f0f13] text-amber-500">On Trip</option>}
+                                        </select>
                                     </td>
                                     <td className="px-6 py-4 text-right">
                                         <button className="text-gray-400 hover:text-white p-2 transition-colors">

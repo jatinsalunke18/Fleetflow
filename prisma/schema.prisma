@@ -61,6 +61,7 @@ model Vehicle {
   maxCapacity  Int      // in kg
   odometer     Float    @default(0.0)
   status       String   @default("AVAILABLE") // AVAILABLE, ON_TRIP, IN_SHOP, RETIRED
+  type         String   @default("Van") // Van, Box-Truck, Heavy-duty Truck
   trips        Trip[]
   maintenance  MaintenanceLog[]
   fuelLogs     FuelLog[]
@@ -75,6 +76,7 @@ model Driver {
   licenseExpiry      DateTime
   safetyScore        Int      @default(100)
   tripCompletionRate Float    @default(100.0)
+  totalDistance      Float    @default(0.0) // in km
   status             String   @default("OFF_DUTY") // ON_DUTY, OFF_DUTY, SUSPENDED, ON_TRIP
   trips              Trip[]
   createdAt          DateTime @default(now())
@@ -86,6 +88,9 @@ model Trip {
   vehicleId    Int
   driverId     Int
   cargoWeight  Int       // in kg
+  distance     Float     @default(0.0) // in km
+  driverRating Float?    // Out of 10
+  fuelUsed     Float?    // Liters used
   status       String    @default("DRAFT") // DRAFT, DISPATCHED, COMPLETED, CANCELLED
   startDate    DateTime  @default(now())
   endDate      DateTime?

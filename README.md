@@ -1,36 +1,67 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# FleetFlow - Fleet & Logistics Management
 
-## Getting Started
+FleetFlow is a comprehensive, production-ready Fleet & Logistics Management dashboard. It handles real-time vehicle registries, personnel compliance tracking, and an automated rule-based trip dispatching engine.
 
-First, run the development server:
+## 🚀 Key Features
 
+- **Role-Based Access Control (RBAC):** Distinct dashboards, actions, and features restricted conditionally per user:
+  - **Fleet Manager:** Global access to analytics, asset creation, personnel onboarding, and dispatch rules.
+  - **Dispatcher:** Unrestricted access to coordinate active trips and assign routes.
+  - **Safety Officer:** Audits human resource compliance, license expirations, and safety scores.
+  - **Financial Analyst:** Read-only access to ROI, fuel expenses, and cost-basis analysis.
+- **Trip Dispatcher Engine:** Automated safety constraints block route assignment if a vehicle is overloaded or if a driver's commercial license is EXPIRED.
+- **Asset Registration:** Complete CRUD management for your vehicles (Vans, Box-Trucks, Heavy-duty Trucks) with automated status adjustments and odometer telemetry tracking.
+- **Human Resources & Compliance:** Interactive toggle module for personnel statuses (On Duty, Off Duty, Suspended) mixed with auto-calculating Safety Scores upon trip completion.
+
+## 🛠️ Technology Stack
+
+- **Framework:** Next.js 16 (App Router) & React 19
+- **Authentication:** NextAuth.js (v5 beta) with Credentials and Prisma Adapter
+- **Database:** PostgreSQL (neon.tech) managed via Prisma ORM
+- **Styling:** Tailwind CSS v4 & generic CSS modules
+- **Animations:** Framer Motion
+- **Icons:** Lucide-React
+
+## 📦 Getting Started
+
+### Prerequisites
+- Node.js (v18+)
+- PostgreSQL Database URL
+
+### 1. Installation
+Clone the repository and install dependencies:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone <repository-url>
+cd fleetflow
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Environment Configuration
+Create a `.env` file in the root directory and add the following:
+```env
+# Your postgres database url
+DATABASE_URL="postgresql://user:password@host:port/database"
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+# Needed for NextAuth cryptographic signing
+AUTH_SECRET="your-super-secret-key-at-least-32-chars"
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 3. Database Sync & Generation
+Push the Prisma schema to the database and generate the Prisma client:
+```bash
+npx prisma generate
+npx prisma db push
+```
 
-## Learn More
+### 4. Seed Strategy
+You can seed basic dummy data or use the UI to manually register initial `Admin` credentials. (An initialization script can be created and run if desired). 
 
-To learn more about Next.js, take a look at the following resources:
+### 5. Running the Application
+Spin up the local development server:
+```bash
+npm run dev
+```
+Navigate to `http://localhost:3000` to view the application.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 📝 License
+This project is for demonstration and production deployment under standard commercial operating procedures.
